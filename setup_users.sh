@@ -42,10 +42,6 @@ if ! sshd -t 2>&1; then
     exit 1
 fi
 
-service ssh restart
-if [ $? -ne 0 ]; then
-    echo "service ssh restart 失败"
-    exit 1
-fi
-
-/usr/sbin/sshd -D 2>&1 || { echo "sshd 启动失败"; exit 255; }
+# 直接启动 sshd 守护进程（前台模式）
+echo "启动 SSH 服务..."
+/usr/sbin/sshd -D
