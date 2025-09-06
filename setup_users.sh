@@ -37,8 +37,8 @@ for entry in $USERS; do
     cat > /home/$username/autossh.sh <<EOS
 #!/bin/bash
 if [ -n "\$SSH_ORIGINAL_COMMAND" ]; then
-    # 非交互模式，绝不输出任何内容
-    exec ssh -T -i "\$HOME/id_rsa" -o StrictHostKeyChecking=no $ruser@$rhost "\$SSH_ORIGINAL_COMMAND"
+    # 非交互模式，禁用伪终端，且屏蔽所有输出，避免协议错误
+    exec ssh -T -i "\$HOME/id_rsa" -o StrictHostKeyChecking=no $ruser@$rhost "\$SSH_ORIGINAL_COMMAND" > /dev/null 2>&1
 else
     # 交互模式才允许输出 debug
     echo "DEBUG: SSH_ORIGINAL_COMMAND=<\$SSH_ORIGINAL_COMMAND>" >> /tmp/autossh.log
