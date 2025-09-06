@@ -39,12 +39,15 @@ touch /var/log/jumpbox.log
 # 记录调试信息
 echo "\$(date): User $host connecting" >> /var/log/jumpbox.log
 echo "\$(date): SSH_ORIGINAL_COMMAND: '\$SSH_ORIGINAL_COMMAND'" >> /var/log/jumpbox.log
+echo "\$(date): Args: \$*" >> /var/log/jumpbox.log
 
 # 检查SSH连接类型
 if [ -n "\$SSH_ORIGINAL_COMMAND" ]; then
     # 有原始命令说明是scp/sftp/rsync等，需要代理转发
     echo "代理执行命令: \$SSH_ORIGINAL_COMMAND" >&2
     echo "\$(date): Proxying command to \$TARGET_USER@\$TARGET_HOST" >> /var/log/jumpbox.log
+    
+    # 对于SCP，我们需要保持stdin/stdout的完整性
     exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "\$SSH_KEY" "\$TARGET_USER@\$TARGET_HOST" "\$SSH_ORIGINAL_COMMAND"
 else
     # 没有原始命令说明是交互式登录，直接跳转
