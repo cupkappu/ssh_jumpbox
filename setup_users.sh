@@ -20,7 +20,10 @@ IFS=$'\n'
 for line in $USERS; do
     IFS=';' read -r host user target_host key_path pubkey_path <<< "$line"
     
+    echo "开始配置用户: $host -> $user@$target_host"
+    
     # 创建智能跳转脚本，支持交互式登录和文件传输
+    echo "创建智能跳转脚本: /usr/local/bin/smart_jump_$host"
     cat > /usr/local/bin/smart_jump_$host << EOF
 #!/bin/bash
 # 智能SSH跳转脚本，支持scp/sftp/rsync等文件传输工具
@@ -51,12 +54,13 @@ else
 fi
 EOF
 
-    chmod +x /usr/local/bin/smart_jump_$host
-    
-    # 验证脚本是否创建成功
-    if [ ! -f "/usr/local/bin/smart_jump_$host" ]; then
+    # 检查脚本是否创建成功
+    if [ -f "/usr/local/bin/smart_jump_$host" ]; then
+        chmod +x /usr/local/bin/smart_jump_$host
+        echo "智能跳转脚本创建成功: /usr/local/bin/smart_jump_$host"
+    else
         echo "错误: 无法创建智能跳转脚本 /usr/local/bin/smart_jump_$host"
-        exit 1
+        continue
     fi
     
     if ! id "$host" &>/dev/null; then
