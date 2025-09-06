@@ -29,14 +29,20 @@ TARGET_USER="USER_PLACEHOLDER"
 TARGET_HOST="TARGET_HOST_PLACEHOLDER"
 SSH_KEY="/home/USERNAME_PLACEHOLDER/.ssh/id_rsa"
 
+# 记录调试信息
+echo "$(date): User USERNAME_PLACEHOLDER connecting" >> /var/log/jumpbox.log
+echo "$(date): SSH_ORIGINAL_COMMAND: '$SSH_ORIGINAL_COMMAND'" >> /var/log/jumpbox.log
+
 # 检查SSH连接类型
 if [ -n "$SSH_ORIGINAL_COMMAND" ]; then
     # 有原始命令说明是scp/sftp/rsync等，需要代理转发
     echo "代理执行命令: $SSH_ORIGINAL_COMMAND" >&2
+    echo "$(date): Proxying command to $TARGET_USER@$TARGET_HOST" >> /var/log/jumpbox.log
     exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$SSH_KEY" "$TARGET_USER@$TARGET_HOST" "$SSH_ORIGINAL_COMMAND"
 else
     # 没有原始命令说明是交互式登录，直接跳转
     echo "正在连接到 $TARGET_USER@$TARGET_HOST..." >&2
+    echo "$(date): Interactive login to $TARGET_USER@$TARGET_HOST" >> /var/log/jumpbox.log
     exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$SSH_KEY" "$TARGET_USER@$TARGET_HOST"
 fi
 SCRIPT_EOF
@@ -58,8 +64,8 @@ SCRIPT_EOF
     chown -R $host:$host /home/$host/.ssh
     chmod 600 /home/$host/.ssh/authorized_keys /home/$host/.ssh/id_rsa
     
-    # 配置SSH强制命令 - 在authorized_keys中添加command限制
-    sed -i "s|^|command=\"/usr/local/bin/smart_jump_$host\",no-port-forwarding,no-X11-forwarding |" /home/$host/.ssh/authorized_keys
+    # 配置SSH强制命令 - 在authorized_keys中添加command限制，但允许更多功能
+    sed -i "s|^|command=\"/usr/local/bin/smart_jump_$host\",no-X11-forwarding |" /home/$host/.ssh/authorized_keys
     
     # 创建SSH配置文件示例（仅供参考）
     cat > /home/$host/ssh_config_sample << EOF
@@ -86,9 +92,13 @@ EOF
 done
 
 sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
 echo "AllowTcpForwarding yes" >> /etc/ssh/sshd_config
 echo "GatewayPorts yes" >> /etc/ssh/sshd_config
 echo "PermitOpen any" >> /etc/ssh/sshd_config
+echo "AllowAgentForwarding yes" >> /etc/ssh/sshd_config
+echo "PermitTTY yes" >> /etc/ssh/sshd_config
+echo "Subsystem sftp /usr/lib/openssh/sftp-server" >> /etc/ssh/sshd_config
 
 # 检查 sshd 配置是否正确
 if ! sshd -t 2>&1; then
