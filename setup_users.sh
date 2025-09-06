@@ -36,12 +36,14 @@ for entry in $USERS; do
     # 自动执行 ssh 的 shell 脚本，支持 ssh 协议族透传
     cat > /home/$username/autossh.sh <<EOS
 #!/bin/bash
+export HOME="/home/$username"
+export USER="$username"
 if [ -n "\$SSH_ORIGINAL_COMMAND" ]; then
     # 非交互模式（如 scp/sftp/rsync）
-    exec ssh -i ~/id_rsa -o StrictHostKeyChecking=no $ruser@$rhost "\$SSH_ORIGINAL_COMMAND"
+    exec ssh -i "\$HOME/id_rsa" -o StrictHostKeyChecking=no $ruser@$rhost "\$SSH_ORIGINAL_COMMAND"
 else
     # 交互模式
-    exec ssh -i ~/id_rsa -o StrictHostKeyChecking=no $ruser@$rhost
+    exec ssh -i "\$HOME/id_rsa" -o StrictHostKeyChecking=no $ruser@$rhost
 fi
 EOS
 
