@@ -26,8 +26,8 @@ for line in $USERS; do
 # 智能SSH跳转脚本，支持scp/sftp/rsync等文件传输工具
 
 TARGET_USER="USER_PLACEHOLDER"
-TARGET_HOST="HOST_PLACEHOLDER"
-SSH_KEY="/home/HOST_PLACEHOLDER/.ssh/id_rsa"
+TARGET_HOST="TARGET_HOST_PLACEHOLDER"
+SSH_KEY="/home/USERNAME_PLACEHOLDER/.ssh/id_rsa"
 
 # 检查SSH连接类型
 if [ -n "$SSH_ORIGINAL_COMMAND" ]; then
@@ -43,8 +43,8 @@ SCRIPT_EOF
 
     # 替换脚本中的占位符
     sed -i "s/USER_PLACEHOLDER/$user/g" /usr/local/bin/smart_jump_$host
-    sed -i "s/HOST_PLACEHOLDER/$target_host/g" /usr/local/bin/smart_jump_$host
-    sed -i "s|/home/HOST_PLACEHOLDER/|/home/$host/|g" /usr/local/bin/smart_jump_$host
+    sed -i "s/TARGET_HOST_PLACEHOLDER/$target_host/g" /usr/local/bin/smart_jump_$host
+    sed -i "s/USERNAME_PLACEHOLDER/$host/g" /usr/local/bin/smart_jump_$host
     chmod +x /usr/local/bin/smart_jump_$host
     
     if ! id "$host" &>/dev/null; then
