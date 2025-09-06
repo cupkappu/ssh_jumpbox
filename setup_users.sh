@@ -36,13 +36,13 @@ for entry in $USERS; do
     # 生成自动跳板脚本
     cat > /home/$username/autossh.sh <<EOS
 #!/bin/bash
-echo "DEBUG: SSH_ORIGINAL_COMMAND=<$SSH_ORIGINAL_COMMAND>" >> /tmp/autossh.log
-if [ -n "$SSH_ORIGINAL_COMMAND" ]; then
-    # 非交互式命令，如 scp/sftp/rsync
-    exec ssh -i ~/id_rsa -o StrictHostKeyChecking=no $ruser@$rhost -- $SSH_ORIGINAL_COMMAND
+if [ -n "\$SSH_ORIGINAL_COMMAND" ]; then
+    # 非交互模式，绝不输出任何内容
+    exec ssh -i "\$HOME/id_rsa" -o StrictHostKeyChecking=no $ruser@$rhost "\$SSH_ORIGINAL_COMMAND"
 else
-    # 交互式 ssh
-    exec ssh -i ~/id_rsa -o StrictHostKeyChecking=no $ruser@$rhost
+    # 交互模式才允许输出 debug
+    echo "DEBUG: SSH_ORIGINAL_COMMAND=<\$SSH_ORIGINAL_COMMAND>" >> /tmp/autossh.log
+    exec ssh -i "\$HOME/id_rsa" -o StrictHostKeyChecking=no $ruser@$rhost
 fi
 EOS
 
