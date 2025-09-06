@@ -1,71 +1,33 @@
 #!/bin/bash
 set -e
 
-# ============= 管理员账号 =============
-# 管理员账号禁止交互式 shell，只能靠 key 登录容器（做管理用）
-useradd -m -s /usr/sbin/nologin "$ADMIN_USER"
+ADMIN_USER=${ADMIN_USER:-admin}
+ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+USERS=${USERS}
+
+useradd -m -s /bin/bash $ADMIN_USER
 echo "$ADMIN_USER:$ADMIN_PASSWORD" | chpasswd
 mkdir -p /home/$ADMIN_USER/.ssh
-
-if [ -f "/ssh/${ADMIN_USER}_authorized_keys" ]; then
-    cat "/ssh/${ADMIN_USER}_authorized_keys" > /home/$ADMIN_USER/.ssh/authorized_keys
-fi
-
+cp /ssh/admin_authorized_keys /home/$ADMIN_USER/.ssh/authorized_keys
 chown -R $ADMIN_USER:$ADMIN_USER /home/$ADMIN_USER/.ssh
-chmod 700 /home/$ADMIN_USER/.ssh || true
-chmod 600 /home/$ADMIN_USER/.ssh/* || true
+chmod 600 /home/$ADMIN_USER/.ssh/authorized_keys
 
-# ============= 普通跳板用户 =============
-for entry in $USERS; do
-    IFS=";" read -r username ruser rhost keyfile authkeys <<<"$entry"
-
-    # 创建普通用户（默认 shell 先设成 bash，后面再改成自动跳板脚本）
-    useradd -m -s /bin/bash "$username"
-    mkdir -p /home/$username/.ssh
-
-    # 外部登录用的公钥
-    if [ -n "$authkeys" ] && [ -f "$authkeys" ]; then
-        cat "$authkeys" > /home/$username/.ssh/authorized_keys
-    fi
-
-    # 私钥：连接目标机器时用
-    cp "$keyfile" /home/$username/id_rsa
-    chmod 600 /home/$username/id_rsa
-    chown -R $username:$username /home/$username
-
-    # 生成自动跳板脚本
-    cat > /home/$username/autossh.sh <<EOS
-#!/bin/bash
-if [ -n "\$SSH_ORIGINAL_COMMAND" ]; then
-    # 非交互模式，禁用伪终端，且屏蔽所有输出，避免协议错误
-    exec ssh -T -i "\$HOME/id_rsa" -o StrictHostKeyChecking=no $ruser@$rhost "\$SSH_ORIGINAL_COMMAND" > /dev/null 2>&1
-else
-    # 交互模式才允许输出 debug
-    echo "DEBUG: SSH_ORIGINAL_COMMAND=<\$SSH_ORIGINAL_COMMAND>" >> /tmp/autossh.log
-    exec ssh -i "\$HOME/id_rsa" -o StrictHostKeyChecking=no $ruser@$rhost
-fi
-EOS
-
-    chmod +x /home/$username/autossh.sh
-    chown $username:$username /home/$username/autossh.sh
-
-    # 修改用户登录 shell → 自动跳板脚本
-    usermod -s /home/$username/autossh.sh $username
-
-    # 禁止显示 motd 和 last login 信息
-    touch /home/$username/.hushlogin
-    chown $username:$username /home/$username/.hushlogin
+IFS=$'\n'
+for line in $USERS; do
+    IFS=';' read -r host user target_host key_path pubkey_path <<< "$line"
+    useradd -m -s /bin/bash $host
+    mkdir -p /home/$host/.ssh
+    cp $pubkey_path /home/$host/.ssh/authorized_keys
+    cp $key_path /home/$host/.ssh/id_rsa
+    chown -R $host:$host /home/$host/.ssh
+    chmod 600 /home/$host/.ssh/authorized_keys /home/$host/.ssh/id_rsa
+    echo "Host $target_host\n    HostName $target_host\n    User $user\n    IdentityFile ~/.ssh/id_rsa\n    ProxyJump $host@jumpbox_ip:jumpbox_port" > /home/$host/ssh_config_sample
 done
 
-# 自动写入 sshd_config 的 Match+ForceCommand 配置（仅限容器初始化时）
-JUMP_USERS=""
-for entry in $USERS; do
-    IFS=";" read -r username ruser rhost keyfile authkeys <<<"$entry"
-    JUMP_USERS+="$username,"
-done
-JUMP_USERS=${JUMP_USERS%,} # 去掉最后一个逗号
+sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+echo "AllowTcpForwarding yes" >> /etc/ssh/sshd_config
+echo "GatewayPorts yes" >> /etc/ssh/sshd_config
+echo "PermitOpen any" >> /etc/ssh/sshd_config
 
-if ! grep -q "ForceCommand" /etc/ssh/sshd_config; then
-    echo "Match User $JUMP_USERS" >> /etc/ssh/sshd_config
-    echo "    ForceCommand /home/%u/autossh.sh" >> /etc/ssh/sshd_config
-fi
+service ssh restart
+exec /usr/sbin/sshd -D
