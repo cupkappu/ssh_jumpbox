@@ -35,5 +35,17 @@ echo "AllowTcpForwarding yes" >> /etc/ssh/sshd_config
 echo "GatewayPorts yes" >> /etc/ssh/sshd_config
 echo "PermitOpen any" >> /etc/ssh/sshd_config
 
+# 检查 sshd 配置是否正确
+if ! sshd -t 2>&1; then
+    echo "sshd 配置检查失败，错误如下："
+    sshd -t 2>&1
+    exit 1
+fi
+
 service ssh restart
+if [ $? -ne 0 ]; then
+    echo "service ssh restart 失败"
+    exit 1
+fi
+
 exec /usr/sbin/sshd -D
