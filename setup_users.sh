@@ -51,6 +51,10 @@ EOS
 
     # 修改用户登录 shell → 自动跳板脚本
     usermod -s /home/$username/autossh.sh $username
+
+    # 禁止显示 motd 和 last login 信息
+    touch /home/$username/.hushlogin
+    chown $username:$username /home/$username/.hushlogin
 done
 
 # 自动写入 sshd_config 的 Match+ForceCommand 配置（仅限容器初始化时）
