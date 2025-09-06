@@ -21,37 +21,43 @@ for line in $USERS; do
     IFS=';' read -r host user target_host key_path pubkey_path <<< "$line"
     
     # 创建智能跳转脚本，支持交互式登录和文件传输
-    cat > /usr/local/bin/smart_jump_$host << 'SCRIPT_EOF'
+    cat > /usr/local/bin/smart_jump_$host << EOF
 #!/bin/bash
 # 智能SSH跳转脚本，支持scp/sftp/rsync等文件传输工具
 
-TARGET_USER="USER_PLACEHOLDER"
-TARGET_HOST="TARGET_HOST_PLACEHOLDER"
-SSH_KEY="/home/USERNAME_PLACEHOLDER/.ssh/id_rsa"
+TARGET_USER="$user"
+TARGET_HOST="$target_host"
+SSH_KEY="/home/$host/.ssh/id_rsa"
+
+# 确保日志目录存在
+mkdir -p /var/log
+touch /var/log/jumpbox.log
 
 # 记录调试信息
-echo "$(date): User USERNAME_PLACEHOLDER connecting" >> /var/log/jumpbox.log
-echo "$(date): SSH_ORIGINAL_COMMAND: '$SSH_ORIGINAL_COMMAND'" >> /var/log/jumpbox.log
+echo "\$(date): User $host connecting" >> /var/log/jumpbox.log
+echo "\$(date): SSH_ORIGINAL_COMMAND: '\$SSH_ORIGINAL_COMMAND'" >> /var/log/jumpbox.log
 
 # 检查SSH连接类型
-if [ -n "$SSH_ORIGINAL_COMMAND" ]; then
+if [ -n "\$SSH_ORIGINAL_COMMAND" ]; then
     # 有原始命令说明是scp/sftp/rsync等，需要代理转发
-    echo "代理执行命令: $SSH_ORIGINAL_COMMAND" >&2
-    echo "$(date): Proxying command to $TARGET_USER@$TARGET_HOST" >> /var/log/jumpbox.log
-    exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$SSH_KEY" "$TARGET_USER@$TARGET_HOST" "$SSH_ORIGINAL_COMMAND"
+    echo "代理执行命令: \$SSH_ORIGINAL_COMMAND" >&2
+    echo "\$(date): Proxying command to \$TARGET_USER@\$TARGET_HOST" >> /var/log/jumpbox.log
+    exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "\$SSH_KEY" "\$TARGET_USER@\$TARGET_HOST" "\$SSH_ORIGINAL_COMMAND"
 else
     # 没有原始命令说明是交互式登录，直接跳转
-    echo "正在连接到 $TARGET_USER@$TARGET_HOST..." >&2
-    echo "$(date): Interactive login to $TARGET_USER@$TARGET_HOST" >> /var/log/jumpbox.log
-    exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$SSH_KEY" "$TARGET_USER@$TARGET_HOST"
+    echo "正在连接到 \$TARGET_USER@\$TARGET_HOST..." >&2
+    echo "\$(date): Interactive login to \$TARGET_USER@\$TARGET_HOST" >> /var/log/jumpbox.log
+    exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "\$SSH_KEY" "\$TARGET_USER@\$TARGET_HOST"
 fi
-SCRIPT_EOF
+EOF
 
-    # 替换脚本中的占位符
-    sed -i "s/USER_PLACEHOLDER/$user/g" /usr/local/bin/smart_jump_$host
-    sed -i "s/TARGET_HOST_PLACEHOLDER/$target_host/g" /usr/local/bin/smart_jump_$host
-    sed -i "s/USERNAME_PLACEHOLDER/$host/g" /usr/local/bin/smart_jump_$host
     chmod +x /usr/local/bin/smart_jump_$host
+    
+    # 验证脚本是否创建成功
+    if [ ! -f "/usr/local/bin/smart_jump_$host" ]; then
+        echo "错误: 无法创建智能跳转脚本 /usr/local/bin/smart_jump_$host"
+        exit 1
+    fi
     
     if ! id "$host" &>/dev/null; then
         # 创建用户，使用普通bash shell
