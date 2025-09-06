@@ -36,12 +36,11 @@ for entry in $USERS; do
     # 生成自动跳板脚本
     cat > /home/$username/autossh.sh <<EOS
 #!/bin/bash
-# 自动透传 ssh/scp/sftp/rsync
-if [ -n "\$SSH_ORIGINAL_COMMAND" ]; then
-    # 非交互模式（scp/sftp/rsync）
-    exec ssh -i ~/id_rsa -o StrictHostKeyChecking=no $ruser@$rhost "\$SSH_ORIGINAL_COMMAND"
+if [ -n "$SSH_ORIGINAL_COMMAND" ]; then
+    # 非交互式命令，如 scp/sftp/rsync
+    exec ssh -i ~/id_rsa -o StrictHostKeyChecking=no $ruser@$rhost -- $SSH_ORIGINAL_COMMAND
 else
-    # 交互模式
+    # 交互式 ssh
     exec ssh -i ~/id_rsa -o StrictHostKeyChecking=no $ruser@$rhost
 fi
 EOS
