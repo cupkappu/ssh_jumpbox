@@ -52,3 +52,16 @@ EOS
     # 修改用户登录 shell → 自动跳板脚本
     usermod -s /home/$username/autossh.sh $username
 done
+
+# 自动写入 sshd_config 的 Match+ForceCommand 配置（仅限容器初始化时）
+JUMP_USERS=""
+for entry in $USERS; do
+    IFS=";" read -r username ruser rhost keyfile authkeys <<<"$entry"
+    JUMP_USERS+="$username,"
+done
+JUMP_USERS=${JUMP_USERS%,} # 去掉最后一个逗号
+
+if ! grep -q "ForceCommand" /etc/ssh/sshd_config; then
+    echo "Match User $JUMP_USERS" >> /etc/ssh/sshd_config
+    echo "    ForceCommand /home/%u/autossh.sh" >> /etc/ssh/sshd_config
+fi
