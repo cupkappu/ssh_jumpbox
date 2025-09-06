@@ -13,4 +13,7 @@ services:
     environment:
       ADMIN_USER: "${ADMIN_USER}"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
-      USERS: "${USERS}"
+      USERS: |
+        host1;user1;host1.local;/keys/id_rsa;/ssh/authorized_keys
+        host2;user2;host2.local;/keys/id_rsa;/ssh/authorized_keys
+        host3;user3;host3.local;/keys/id_rsa;/ssh/authorized_keys
