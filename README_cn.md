@@ -62,6 +62,30 @@ host;user;host.local;/keys/id_rsa;/ssh/authorized_keys
 - `/keys/id_rsa`：私钥路径
 - `/ssh/authorized_keys`：公钥路径
 
+## 📁 文件传输使用方法
+
+### SCP (安全复制)
+```bash
+# 支持SFTP的目标主机（默认）
+scp -P 2222 file.txt user@jumpbox:/remote/path
+
+# 不支持SFTP的目标主机（使用传统SCP）
+scp -P 2222 -O file.txt user@jumpbox:/remote/path
+```
+
+### SFTP
+```bash
+sftp -P 2222 user@jumpbox
+```
+
+**注意**: 某些目标主机可能不支持SFTP。如果SCP遇到"Connection closed"错误，请使用 `-O` 选项强制使用传统SCP协议。
+
+## 🔍 故障排除
+
+- **SCP失败并显示"Connection closed"**: 使用 `scp -O` 选项启用传统SCP协议
+- **查看日志**: 在容器内查看 `/var/log/jumpbox.log` 进行调试
+- **测试连接**: 先通过交互式SSH连接验证目标主机的可访问性
+
 ## ⚠️ 注意事项
 
 - 请勿将真实密钥文件提交到 Git 仓库，`.gitignore` 已做保护。

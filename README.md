@@ -63,6 +63,30 @@ host;user;host.local;/keys/id_rsa;/ssh/authorized_keys
 - `/keys/id_rsa`: Private key path
 - `/ssh/authorized_keys`: Public key path
 
+## 📁 File Transfer Usage
+
+### SCP (Secure Copy)
+```bash
+# For hosts with SFTP support (default)
+scp -P 2222 file.txt user@jumpbox:/remote/path
+
+# For hosts without SFTP support (use legacy SCP)
+scp -P 2222 -O file.txt user@jumpbox:/remote/path
+```
+
+### SFTP
+```bash
+sftp -P 2222 user@jumpbox
+```
+
+**Note**: Some target hosts may not support SFTP. If you encounter "Connection closed" errors with SCP, use the `-O` option to force legacy SCP protocol.
+
+## 🔍 Troubleshooting
+
+- **SCP fails with "Connection closed"**: Use `scp -O` option for legacy SCP protocol
+- **Check logs**: View `/var/log/jumpbox.log` inside the container for debugging
+- **Test connectivity**: SSH interactively first to verify target host accessibility
+
 ## ⚠️ Notes
 
 - Do not commit real key files to Git; `.gitignore` protects sensitive files.

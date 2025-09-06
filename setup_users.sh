@@ -32,25 +32,35 @@ TARGET_USER="$user"
 TARGET_HOST="$target_host"
 SSH_KEY="/home/$host/.ssh/id_rsa"
 
-# 确保日志目录存在
+# 确保日志目录存在并设置权限
 mkdir -p /var/log
 touch /var/log/jumpbox.log
+chmod 666 /var/log/jumpbox.log
 
 # 记录调试信息
-echo "\$(date): User $host connecting" >> /var/log/jumpbox.log
-echo "\$(date): SSH_ORIGINAL_COMMAND: '\$SSH_ORIGINAL_COMMAND'" >> /var/log/jumpbox.log
-echo "\$(date): Args: \$*" >> /var/log/jumpbox.log
+echo "\$(date): User $host connecting, SSH_ORIGINAL_COMMAND=[\$SSH_ORIGINAL_COMMAND]" >> /var/log/jumpbox.log
 
-# 检查SSH连接类型
-if [ -n "\$SSH_ORIGINAL_COMMAND" ]; then
-    # 有原始命令说明是scp/sftp/rsync等，需要代理转发
-    echo "代理执行命令: \$SSH_ORIGINAL_COMMAND" >&2
+# 检查连接类型并处理
+if [[ "\$SSH_ORIGINAL_COMMAND" == "/usr/lib/openssh/sftp-server" ]]; then
+    # SFTP请求 - 首先尝试代理，如果失败提供有用的错误信息
+    echo "\$(date): SFTP request to \$TARGET_USER@\$TARGET_HOST" >> /var/log/jumpbox.log
+    if ! ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -i "\$SSH_KEY" "\$TARGET_USER@\$TARGET_HOST" "test -x /usr/lib/openssh/sftp-server" 2>/dev/null; then
+        echo "Error: Target host \$TARGET_HOST does not support SFTP." >&2
+        echo "Please use: scp -O [options] for legacy SCP protocol" >&2
+        echo "\$(date): SFTP denied for \$TARGET_HOST (no SFTP support)" >> /var/log/jumpbox.log
+        exit 1
+    fi
+    exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "\$SSH_KEY" "\$TARGET_USER@\$TARGET_HOST" "\$SSH_ORIGINAL_COMMAND"
+elif [[ "\$SSH_ORIGINAL_COMMAND" == scp* ]]; then
+    # SCP命令，直接代理
+    echo "\$(date): Proxying SCP command to \$TARGET_USER@\$TARGET_HOST" >> /var/log/jumpbox.log
+    exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "\$SSH_KEY" "\$TARGET_USER@\$TARGET_HOST" "\$SSH_ORIGINAL_COMMAND"
+elif [ -n "\$SSH_ORIGINAL_COMMAND" ]; then
+    # 其他命令，直接代理
     echo "\$(date): Proxying command to \$TARGET_USER@\$TARGET_HOST" >> /var/log/jumpbox.log
-    
-    # 对于SCP，我们需要保持stdin/stdout的完整性
     exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "\$SSH_KEY" "\$TARGET_USER@\$TARGET_HOST" "\$SSH_ORIGINAL_COMMAND"
 else
-    # 没有原始命令说明是交互式登录，直接跳转
+    # 交互式登录
     echo "正在连接到 \$TARGET_USER@\$TARGET_HOST..." >&2
     echo "\$(date): Interactive login to \$TARGET_USER@\$TARGET_HOST" >> /var/log/jumpbox.log
     exec ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "\$SSH_KEY" "\$TARGET_USER@\$TARGET_HOST"
