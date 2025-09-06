@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  ssh-jumpbox:
+    build: .
+    container_name: ssh_jumpbox
+    restart: unless-stopped
+    ports:
+      - "2222:22"
+    volumes:
+      - ./ssh:/ssh:ro
+      - ./keys:/keys:ro
+    environment:
+      ADMIN_USER: "${ADMIN_USER}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      USERS: "${USERS}"
