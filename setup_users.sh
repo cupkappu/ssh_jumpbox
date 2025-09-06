@@ -93,12 +93,29 @@ done
 
 sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
 sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-echo "AllowTcpForwarding yes" >> /etc/ssh/sshd_config
-echo "GatewayPorts yes" >> /etc/ssh/sshd_config
-echo "PermitOpen any" >> /etc/ssh/sshd_config
-echo "AllowAgentForwarding yes" >> /etc/ssh/sshd_config
-echo "PermitTTY yes" >> /etc/ssh/sshd_config
-echo "Subsystem sftp /usr/lib/openssh/sftp-server" >> /etc/ssh/sshd_config
+
+# 检查是否已存在这些配置，避免重复添加
+if ! grep -q "AllowTcpForwarding yes" /etc/ssh/sshd_config; then
+    echo "AllowTcpForwarding yes" >> /etc/ssh/sshd_config
+fi
+if ! grep -q "GatewayPorts yes" /etc/ssh/sshd_config; then
+    echo "GatewayPorts yes" >> /etc/ssh/sshd_config
+fi
+if ! grep -q "PermitOpen any" /etc/ssh/sshd_config; then
+    echo "PermitOpen any" >> /etc/ssh/sshd_config
+fi
+if ! grep -q "AllowAgentForwarding yes" /etc/ssh/sshd_config; then
+    echo "AllowAgentForwarding yes" >> /etc/ssh/sshd_config
+fi
+if ! grep -q "PermitTTY yes" /etc/ssh/sshd_config; then
+    echo "PermitTTY yes" >> /etc/ssh/sshd_config
+fi
+
+# SFTP子系统通常已经默认配置，不需要重复添加
+# 检查SFTP子系统是否已存在，如果不存在才添加
+if ! grep -q "Subsystem.*sftp" /etc/ssh/sshd_config; then
+    echo "Subsystem sftp /usr/lib/openssh/sftp-server" >> /etc/ssh/sshd_config
+fi
 
 # 检查 sshd 配置是否正确
 if ! sshd -t 2>&1; then
