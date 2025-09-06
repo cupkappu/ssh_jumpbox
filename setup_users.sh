@@ -48,4 +48,4 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-exec /usr/sbin/sshd -D
+/usr/sbin/sshd -D 2>&1 || { echo "sshd 启动失败"; exit 255; }
