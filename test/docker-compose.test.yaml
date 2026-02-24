@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  target:
+    build:
+      context: ..
+      dockerfile: test/Dockerfile.target
+    container_name: ssh_target
+    networks:
+      - jumpbox_net
+
+  jumpbox:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: ssh_jumpbox
+    ports:
+      - "2222:22"
+    volumes:
+      - ../ssh:/ssh:ro
+      - ../keys:/keys:ro
+    environment:
+      ADMIN_USER: "admin"
+      ADMIN_PASSWORD: "admin123"
+      USERS: |
+        host1;user1;target;/keys/id_rsa;/ssh/authorized_keys
+    networks:
+      - jumpbox_net
+    depends_on:
+      - target
+
+networks:
+  jumpbox_net:
+    driver: bridge
