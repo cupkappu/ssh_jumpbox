@@ -51,7 +51,7 @@ ssh_gateway/
 
 ## 🗂️ Key Files
 
-- `Dockerfile`: Builds the base image, installs OpenSSH, copies keys and setup script.
+- `Dockerfile`: Builds the base image, installs OpenSSH, and copies the setup script. Runtime keys are mounted as volumes rather than baked into the image.
 - `setup_users.sh`: Creates admin and users, configures SSH keys, and generates auto-SSH scripts for users. Interactive logins use `dtach + ssh` to keep backend sessions alive for `mosh` reconnects without adding a nested terminal multiplexer UI.
 - `docker-compose.yaml`: Defines service, port mapping, and mounts for keys and public keys.
 - `docker-compose.example.yaml`: Example for environment variables and user configuration, using the published GHCR image instead of a local build.

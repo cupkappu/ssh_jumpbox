@@ -50,7 +50,7 @@ docker-compose up -d
 
 ## 🗂️ 主要文件说明
 
-- `Dockerfile`：构建基础镜像，安装 OpenSSH，拷贝密钥和配置脚本。
+- `Dockerfile`：构建基础镜像，安装 OpenSSH，并拷贝启动脚本。运行时所需密钥通过 volume 挂载提供，而不是打进镜像。
 - `setup_users.sh`：容器启动时自动创建管理员和普通用户，配置 SSH 公钥和私钥，并为普通用户生成自动 SSH 脚本。交互式登录会通过 `dtach + ssh` 保持后端会话，便于 `mosh` 断线重连，同时避免和后端已有的 `tmux` 套娃。
 - `docker-compose.yaml`：定义服务、端口映射、挂载密钥和公钥目录。
 - `docker-compose.example.yaml`：环境变量和用户配置示例，默认使用已发布到 GHCR 的镜像，而不是本地构建。

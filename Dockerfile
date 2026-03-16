@@ -5,8 +5,6 @@ RUN apt-get update && \
     mkdir /var/run/sshd
 
 COPY setup_users.sh /setup_users.sh
-COPY ssh/ /ssh/
-COPY keys/ /keys/
 
 RUN chmod +x /setup_users.sh
 
