@@ -37,6 +37,8 @@ ssh_gateway/
      - `USERS`：普通用户配置，每行格式： `host;user;host.local;/keys/id_rsa;/ssh/authorized_keys`
 
 3. **启动服务** 🏃‍♂️
+   - 可先将 `docker-compose.example.yaml` 复制为 `docker-compose.yaml`，再按需修改。
+   - 示例 Compose 会直接拉取 `ghcr.io/cupkappu/ssh_jumpbox:latest`，不依赖本地构建。
 ```bash
 docker-compose up -d
 ```
@@ -51,7 +53,7 @@ docker-compose up -d
 - `Dockerfile`：构建基础镜像，安装 OpenSSH，拷贝密钥和配置脚本。
 - `setup_users.sh`：容器启动时自动创建管理员和普通用户，配置 SSH 公钥和私钥，并为普通用户生成自动 SSH 脚本。交互式登录会通过 `dtach + ssh` 保持后端会话，便于 `mosh` 断线重连，同时避免和后端已有的 `tmux` 套娃。
 - `docker-compose.yaml`：定义服务、端口映射、挂载密钥和公钥目录。
-- `docker-compose.example.yaml`：环境变量和用户配置示例。
+- `docker-compose.example.yaml`：环境变量和用户配置示例，默认使用已发布到 GHCR 的镜像，而不是本地构建。
 
 ## 👥 用户配置说明
 

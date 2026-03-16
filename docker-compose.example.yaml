@@ -2,7 +2,8 @@ version: "3.9"
 
 services:
   ssh-jumpbox:
-    build: .
+    image: ghcr.io/cupkappu/ssh_jumpbox:latest
+    pull_policy: always
     container_name: ssh_jumpbox
     restart: unless-stopped
     ports:

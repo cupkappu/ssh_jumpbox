@@ -38,6 +38,8 @@ ssh_gateway/
        `host;user;host.local;/keys/id_rsa;/ssh/authorized_keys`
 
 3. **Start the Service** 🏃‍♂️
+   - Copy `docker-compose.example.yaml` to `docker-compose.yaml`, or use it directly after editing values.
+   - The example Compose file pulls the prebuilt image from `ghcr.io/cupkappu/ssh_jumpbox:latest`.
    ```bash
    docker-compose up -d
    ```
@@ -52,7 +54,7 @@ ssh_gateway/
 - `Dockerfile`: Builds the base image, installs OpenSSH, copies keys and setup script.
 - `setup_users.sh`: Creates admin and users, configures SSH keys, and generates auto-SSH scripts for users. Interactive logins use `dtach + ssh` to keep backend sessions alive for `mosh` reconnects without adding a nested terminal multiplexer UI.
 - `docker-compose.yaml`: Defines service, port mapping, and mounts for keys and public keys.
-- `docker-compose.example.yaml`: Example for environment variables and user configuration.
+- `docker-compose.example.yaml`: Example for environment variables and user configuration, using the published GHCR image instead of a local build.
 
 ## 👥 User Configuration Format
 
