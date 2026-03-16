@@ -5,6 +5,8 @@
 
 This project provides a Docker-based SSH jumpbox (gateway) solution with automated multi-user configuration. Designed for secure, efficient access management to internal hosts! 🔒🧑‍💻
 
+It also supports a mobile-friendly `mosh` mode: the client uses `mosh` only for the last hop to the jumpbox, while the jumpbox keeps a persistent SSH session to the target host with `dtach + ssh`.
+
 ## 📁 Directory Structure
 
 ```
@@ -43,11 +45,12 @@ ssh_gateway/
 4. **Connect to the Jumpbox** 🕹️
    - Admin can log in via SSH password.
    - Regular users are auto-forwarded to the target host via SSH upon login.
+   - Mobile users can connect with `mosh`; the jumpbox will restore the same backend SSH session on reconnect.
 
 ## 🗂️ Key Files
 
 - `Dockerfile`: Builds the base image, installs OpenSSH, copies keys and setup script.
-- `setup_users.sh`: Creates admin and users, configures SSH keys, and generates auto-SSH scripts for users.
+- `setup_users.sh`: Creates admin and users, configures SSH keys, and generates auto-SSH scripts for users. Interactive logins use `dtach + ssh` to keep backend sessions alive for `mosh` reconnects without adding a nested terminal multiplexer UI.
 - `docker-compose.yaml`: Defines service, port mapping, and mounts for keys and public keys.
 - `docker-compose.example.yaml`: Example for environment variables and user configuration.
 
@@ -80,6 +83,33 @@ sftp -P 2222 user@jumpbox
 ```
 
 **Note**: Some target hosts may not support SFTP. If you encounter "Connection closed" errors with SCP, use the `-O` option to force legacy SCP protocol.
+
+## 📱 MOSH Mode
+
+Expose the standard MOSH UDP range in your Compose file:
+
+```yaml
+ports:
+  - "2222:22"
+  - "60000-61000:60000-61000/udp"
+```
+
+Then connect from the client with:
+
+```bash
+mosh --ssh="ssh -p 2222" host1@jumpbox.example.com
+```
+
+How it works:
+- `mosh` runs only between the client and the jumpbox.
+- The jumpbox starts a local `mosh-server`, then attaches the user to a persistent `dtach` session.
+- That `dtach` session maintains an SSH connection from the jumpbox to the configured backend host.
+- When the mobile network changes, reconnecting with `mosh` returns to the same backend shell session.
+
+Notes:
+- The jumpbox image now includes `mosh` and `dtach`.
+- The backend host does not need `mosh`; it only needs SSH access from the jumpbox.
+- Non-interactive SSH, SCP, SFTP, and port forwarding continue to use direct SSH proxying as before.
 
 ## 🔍 Troubleshooting
 

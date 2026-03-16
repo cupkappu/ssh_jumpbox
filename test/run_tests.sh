@@ -85,6 +85,18 @@ else
 fi
 
 echo ""
+echo "=== Test 6: MOSH handshake on jumpbox ==="
+MOSH_OUT=$(ssh $SSH_OPTS -p 2222 host1@localhost \
+    "mosh-server new -s -c 256 -l LANG=C.UTF-8 -l LC_ALL=C.UTF-8 -p 60000:60010" \
+    2>/dev/null || echo "")
+MOSH_PORT=$(echo "$MOSH_OUT" | awk '/^MOSH CONNECT / {print $3; exit}')
+if [[ -n "$MOSH_PORT" ]]; then
+    pass "MOSH handshake succeeded on jumpbox (port $MOSH_PORT)"
+else
+    fail "MOSH handshake failed (got: '$MOSH_OUT')"
+fi
+
+echo ""
 echo "=== Results ==="
 echo "  Passed: $PASS"
 echo "  Failed: $FAIL"

@@ -5,6 +5,8 @@
 
 本项目用于搭建一个基于 Docker 的 SSH 跳板机（Jumpbox），支持多用户自动配置，安全高效。让你的运维更轻松！🔒🧑‍💻
 
+同时支持适合移动网络场景的 `mosh` 模式：客户端只在最后一跳连接 jumpbox 时使用 `mosh`，jumpbox 内部通过 `dtach + ssh` 持续维护到后端主机的会话。
+
 ## 📁 目录结构
 
 ```
@@ -42,11 +44,12 @@ docker-compose up -d
 4. **连接跳板机** 🕹️
    - 管理员用户可通过 SSH 密码登录。
    - 普通用户登录后自动跳转到指定主机，无需手动输入 SSH 命令。
+   - 移动端用户可使用 `mosh` 连接，网络切换后会自动回到同一个后端 SSH 会话。
 
 ## 🗂️ 主要文件说明
 
 - `Dockerfile`：构建基础镜像，安装 OpenSSH，拷贝密钥和配置脚本。
-- `setup_users.sh`：容器启动时自动创建管理员和普通用户，配置 SSH 公钥和私钥，并为普通用户生成自动 SSH 脚本。
+- `setup_users.sh`：容器启动时自动创建管理员和普通用户，配置 SSH 公钥和私钥，并为普通用户生成自动 SSH 脚本。交互式登录会通过 `dtach + ssh` 保持后端会话，便于 `mosh` 断线重连，同时避免和后端已有的 `tmux` 套娃。
 - `docker-compose.yaml`：定义服务、端口映射、挂载密钥和公钥目录。
 - `docker-compose.example.yaml`：环境变量和用户配置示例。
 
@@ -79,6 +82,33 @@ sftp -P 2222 user@jumpbox
 ```
 
 **注意**: 某些目标主机可能不支持SFTP。如果SCP遇到"Connection closed"错误，请使用 `-O` 选项强制使用传统SCP协议。
+
+## 📱 MOSH 模式
+
+请在 Compose 中暴露标准 MOSH UDP 端口范围：
+
+```yaml
+ports:
+  - "2222:22"
+  - "60000-61000:60000-61000/udp"
+```
+
+客户端连接示例：
+
+```bash
+mosh --ssh="ssh -p 2222" host1@jumpbox.example.com
+```
+
+工作方式：
+- `mosh` 只负责客户端到 jumpbox 的最后一跳。
+- jumpbox 本地启动 `mosh-server`，随后把用户接入一个持久的 `dtach` 会话。
+- 这个 `dtach` 会话内部维护着 jumpbox 到后端目标机的 SSH 连接。
+- 当移动网络切换或短暂断线后，重新连上 `mosh` 就会回到同一个后端 shell。
+
+说明：
+- jumpbox 镜像已内置 `mosh` 和 `dtach`。
+- 后端目标机不需要安装 `mosh`，只需要允许 jumpbox 通过 SSH 连接。
+- 非交互式 SSH、SCP、SFTP 和端口转发仍然沿用原有的 SSH 代理模式。
 
 ## 🔍 故障排除
 

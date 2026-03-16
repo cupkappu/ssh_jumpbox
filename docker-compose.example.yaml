@@ -7,6 +7,7 @@ services:
     restart: unless-stopped
     ports:
       - "2222:22"
+      - "60000-61000:60000-61000/udp"
     volumes:
       - ./ssh:/ssh:ro
       - ./keys:/keys:ro

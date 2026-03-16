@@ -36,13 +36,17 @@ for line in $USERS; do
 TARGET_USER="$user"
 TARGET_HOST="$target_host"
 SSH_KEY="/home/$host/.ssh/id_rsa"
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i \$SSH_KEY"
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -i \$SSH_KEY"
+DTACH_SOCKET="/tmp/jump_$host.dtach"
 
 # 记录调试信息
 echo "\$(date): User $host connecting, SSH_ORIGINAL_COMMAND=[\$SSH_ORIGINAL_COMMAND]" >> /var/log/jumpbox.log 2>/dev/null
 
 # 检查连接类型并处理
-if [[ "\$SSH_ORIGINAL_COMMAND" == "/usr/lib/openssh/sftp-server" ]]; then
+if [[ "\$SSH_ORIGINAL_COMMAND" == mosh-server* ]]; then
+    echo "\$(date): Starting local MOSH server for $host" >> /var/log/jumpbox.log 2>/dev/null
+    exec sh -lc "\$SSH_ORIGINAL_COMMAND"
+elif [[ "\$SSH_ORIGINAL_COMMAND" == "/usr/lib/openssh/sftp-server" ]]; then
     # SFTP请求 - 直接转发
     echo "\$(date): SFTP request to \$TARGET_USER@\$TARGET_HOST" >> /var/log/jumpbox.log 2>/dev/null
     exec ssh -T \$SSH_OPTS "\$TARGET_USER@\$TARGET_HOST" "\$SSH_ORIGINAL_COMMAND"
@@ -56,6 +60,12 @@ elif [ -n "\$SSH_ORIGINAL_COMMAND" ]; then
     exec ssh -T \$SSH_OPTS "\$TARGET_USER@\$TARGET_HOST" "\$SSH_ORIGINAL_COMMAND"
 else
     # 交互式登录
+    if [ -n "\$MOSH_IP" ] || tty -s; then
+        echo "Attaching to persistent session for \$TARGET_USER@\$TARGET_HOST..." >&2
+        echo "\$(date): Interactive persistent login to \$TARGET_USER@\$TARGET_HOST via dtach socket \$DTACH_SOCKET" >> /var/log/jumpbox.log 2>/dev/null
+        exec dtach -A "\$DTACH_SOCKET" -r winch -z /bin/sh -lc "exec ssh \$SSH_OPTS \$TARGET_USER@\$TARGET_HOST"
+    fi
+
     echo "正在连接到 \$TARGET_USER@\$TARGET_HOST..." >&2
     echo "\$(date): Interactive login to \$TARGET_USER@\$TARGET_HOST" >> /var/log/jumpbox.log 2>/dev/null
     exec ssh \$SSH_OPTS "\$TARGET_USER@\$TARGET_HOST"
@@ -72,17 +82,20 @@ EOF
     fi
     
     if ! id "$host" &>/dev/null; then
-        # 创建用户，使用普通bash shell
-        useradd -m -s /bin/bash "$host"
+        useradd -m -s /usr/local/bin/smart_jump_$host "$host"
     fi
+    usermod -s /usr/local/bin/smart_jump_$host "$host"
     
     mkdir -p /home/$host/.ssh
     cp $pubkey_path /home/$host/.ssh/authorized_keys
     cp $key_path /home/$host/.ssh/id_rsa
-    chown -R $host:$host /home/$host/.ssh
+    chown -R $host:$host /home/$host
+    chmod 755 /home/$host
+    chmod 700 /home/$host/.ssh
     chmod 600 /home/$host/.ssh/authorized_keys /home/$host/.ssh/id_rsa
     
-    # 配置SSH强制命令 - 在authorized_keys中添加command限制，但允许更多功能
+    # 配置SSH强制命令 - 在authorized_keys中添加command限制
+    # 不添加permitopen限制，允许端口转发到任何目标 (由sshd_config中的PermitOpen any控制)
     sed -i "s|^|command=\"/usr/local/bin/smart_jump_$host\",no-X11-forwarding |" /home/$host/.ssh/authorized_keys
     
     # 创建SSH配置文件示例（仅供参考）
